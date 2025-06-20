@@ -20,8 +20,12 @@ jobs:
         uses: docker/setup-buildx-action@v3
 
       - name: Build Docker Image
-        run: |
-          docker build -t user-profile-service:$(echo $GITHUB_SHA | cut -c1-7) .
+        uses: docker/build-push-action@v5 # Using the recommended build-push-action
+        with:
+          context: .                     # Build from the current directory
+          push: false                    # Do NOT push to a registry (for now)
+          load: true                     # IMPORTANT: Load the image into the local Docker daemon
+          tags: user-profile-service:${{ github.sha }} # Tag the image with the commit SHA
 
       - name: Run Docker Container (for testing)
         run: |
