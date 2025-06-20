@@ -26,7 +26,8 @@ jobs:
           push: false                    # Do NOT push to a registry (for now)
           load: true                     # IMPORTANT: Load the image into the local Docker daemon
           tags: user-profile-service:${{ github.sha }} # Tag the image with the commit SHA
-
+      - name: List Docker Images # <--- ADD THIS NEW DEBUGGING STEP
+        run: docker images          # <--- THIS WILL SHOW ALL LOCAL IMAGES
       - name: Run Docker Container (for testing)
         run: |
           docker run -d -p 5000:5000 --name user-profile-test user-profile-service:$(echo $GITHUB_SHA | cut -c1-7)
