@@ -1,0 +1,47 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build Docker Image
+        run: |
+          docker build -t user-profile-service:$(echo $GITHUB_SHA | cut -c1-7) .
+
+      - name: Run Docker Container (for testing)
+        run: |
+          docker run -d -p 5000:5000 --name user-profile-test user-profile-service:$(echo $GITHUB_SHA | cut -c1-7)
+          sleep 5 # Give the app a moment to start
+
+      - name: Test Application Health Check
+        run: |
+          curl -f http://localhost:5000 || exit 1
+
+      - name: Test User Profile Endpoint
+        run: |
+          curl -f http://localhost:5000/users/user1 || exit 1
+
+      - name: Test Greet Endpoint (and XSS)
+        run: |
+          curl -f "http://localhost:5000/greet?name=Test" || exit 1
+
+      - name: Stop and Remove Container
+        if: always()
+        run: |
+          docker stop user-profile-test || true
+          docker rm user-profile-test || true
