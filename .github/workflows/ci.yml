@@ -35,13 +35,47 @@ jobs:
       - name: Test User Profile Endpoint
         run: |
           curl -f http://localhost:5000/users/user1 || exit 1
-
       - name: Test Greet Endpoint (and XSS)
         run: |
           curl -f "http://localhost:5000/greet?name=Test" || exit 1
+      # --- START OF CORRECTED TRIVY AND CLEANUP STEPS ---
+      - name: Scan Docker Image with Trivy (OS and Libraries)
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: 'user-profile-service:${{ github.sha }}'
+          format: 'github'
+          output: 'trivy-results-image.sarif'
+          severity: 'CRITICAL,HIGH' # Only report Critical and High vulnerabilities initially
+          vuln-type: 'os,library' # Scan for OS package and language-specific library vulnerabilities
+          ignore-unfixed: true # Only report vulnerabilities with a fix available
+      - name: Upload Trivy Image Scan Results to GitHub Security Tab
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: 'trivy-results-image.sarif'
+        if: always() # Ensure this always runs to upload results even if previous step had findings
+
+      - name: Scan Filesystem (IaC/misconfigs) with Trivy
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: 'fs' # Filesystem scan
+          hide-progress: false # Show progress during scan
+          format: 'github'
+          output: 'trivy-results-fs.sarif'
+          severity: 'CRITICAL,HIGH' # Only report Critical and High misconfigurations/vulnerabilities
+          ignore-unfixed: true # Only report vulnerabilities with a fix available (if applicable to FS scan)
+          # Set target to the current directory
+          # Path to scan can be specified, by default it's .
+          # target: '.'
+
+      - name: Upload Trivy Filesystem Scan Results to GitHub Security Tab
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: 'trivy-results-fs.sarif'
+        if: always() # Ensure this always runs to upload results even if previous step had findings
 
       - name: Stop and Remove Container
         if: always()
         run: |
           docker stop user-profile-test || true
           docker rm user-profile-test || true
+      # --- END OF CORRECTED TRIVY AND CLEANUP STEPS ---
