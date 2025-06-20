@@ -11,6 +11,9 @@ on:
 jobs:
   build-and-test:
     runs-on: ubuntu-latest
+    permissions: # Add this block
+      contents: read # Allow reading repository content
+      security-events: write # Required for uploading SARIF results
 
     steps:
       - name: Checkout Code
@@ -52,7 +55,8 @@ jobs:
           curl -f "http://localhost:5000/greet?name=Test" || exit 1
 
       - name: Scan Docker Image with Trivy (OS and Libraries)
-        uses: aquasecurity/trivy-action@main # Changed to @main
+        # We'll revert to a specific version here. If this fails, we go to direct CLI.
+        uses: aquasecurity/trivy-action@v0.30.0 # Reverting to the specific version as @main also failed
         with:
           image-ref: 'user-profile-service:${{ steps.vars.outputs.sha_short }}'
           format: 'sarif'
@@ -69,7 +73,8 @@ jobs:
         if: always()
 
       - name: Scan Filesystem (IaC/misconfigs) with Trivy
-        uses: aquasecurity/trivy-action@main # Changed to @main
+        # We'll revert to a specific version here. If this fails, we go to direct CLI.
+        uses: aquasecurity/trivy-action@v0.30.0 # Reverting to the specific version as @main also failed
         with:
           scan-type: 'fs'
           hide-progress: false
