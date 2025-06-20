@@ -19,19 +19,26 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
+      - name: Set Truncated SHA # New step to get short SHA
+        id: vars # Assign an ID to reference outputs from this step
+        run: echo "sha_short=$(echo ${{ github.sha }} | cut -c1-7)" >> "$GITHUB_OUTPUT" # Use $GITHUB_OUTPUT for new syntax
+
       - name: Build Docker Image
-        uses: docker/build-push-action@v5 # Using the recommended build-push-action
+        uses: docker/build-push-action@v5
         with:
-          context: .                     # Build from the current directory
-          push: false                    # Do NOT push to a registry (for now)
-          load: true                     # IMPORTANT: Load the image into the local Docker daemon
-          tags: user-profile-service:${{ substring(github.sha, 0, 7) }}
-           # Tag the image with the commit SHA
-      - name: List Docker Images # <--- ADD THIS NEW DEBUGGING STEP
-        run: docker images          # <--- THIS WILL SHOW ALL LOCAL IMAGES
+          context: .
+          push: false
+          load: true
+          # Use the output from the 'Set Truncated SHA' step for the tag
+          tags: user-profile-service:${{ steps.vars.outputs.sha_short }}
+
+      - name: List Docker Images # Debugging step - helpful to keep for now
+        run: docker images
+
       - name: Run Docker Container (for testing)
         run: |
-          docker run -d -p 5000:5000 --name user-profile-test user-profile-service:$(echo $GITHUB_SHA | cut -c1-7)
+          # Use the output from the 'Set Truncated SHA' step for the image tag
+          docker run -d -p 5000:5000 --name user-profile-test user-profile-service:${{ steps.vars.outputs.sha_short }}
           sleep 5 # Give the app a moment to start
 
       - name: Test Application Health Check
@@ -41,47 +48,46 @@ jobs:
       - name: Test User Profile Endpoint
         run: |
           curl -f http://localhost:5000/users/user1 || exit 1
+
       - name: Test Greet Endpoint (and XSS)
         run: |
           curl -f "http://localhost:5000/greet?name=Test" || exit 1
-      # --- START OF CORRECTED TRIVY AND CLEANUP STEPS ---
+
       - name: Scan Docker Image with Trivy (OS and Libraries)
         uses: aquasecurity/trivy-action@master
         with:
-          image-ref: 'user-profile-service:${{ github.sha }}'
+          # Use the output from the 'Set Truncated SHA' step for the image reference
+          image-ref: 'user-profile-service:${{ steps.vars.outputs.sha_short }}'
           format: 'github'
           output: 'trivy-results-image.sarif'
-          severity: 'CRITICAL,HIGH' # Only report Critical and High vulnerabilities initially
-          vuln-type: 'os,library' # Scan for OS package and language-specific library vulnerabilities
-          ignore-unfixed: true # Only report vulnerabilities with a fix available
+          severity: 'CRITICAL,HIGH'
+          vuln-type: 'os,library'
+          ignore-unfixed: true
+
       - name: Upload Trivy Image Scan Results to GitHub Security Tab
         uses: github/codeql-action/upload-sarif@v3
         with:
           sarif_file: 'trivy-results-image.sarif'
-        if: always() # Ensure this always runs to upload results even if previous step had findings
+        if: always()
 
       - name: Scan Filesystem (IaC/misconfigs) with Trivy
         uses: aquasecurity/trivy-action@master
         with:
-          scan-type: 'fs' # Filesystem scan
-          hide-progress: false # Show progress during scan
+          scan-type: 'fs'
+          hide-progress: false
           format: 'github'
           output: 'trivy-results-fs.sarif'
-          severity: 'CRITICAL,HIGH' # Only report Critical and High misconfigurations/vulnerabilities
-          ignore-unfixed: true # Only report vulnerabilities with a fix available (if applicable to FS scan)
-          # Set target to the current directory
-          # Path to scan can be specified, by default it's .
-          # target: '.'
+          severity: 'CRITICAL,HIGH'
+          ignore-unfixed: true
 
       - name: Upload Trivy Filesystem Scan Results to GitHub Security Tab
         uses: github/codeql-action/upload-sarif@v3
         with:
           sarif_file: 'trivy-results-fs.sarif'
-        if: always() # Ensure this always runs to upload results even if previous step had findings
+        if: always()
 
       - name: Stop and Remove Container
         if: always()
         run: |
           docker stop user-profile-test || true
           docker rm user-profile-test || true
-      # --- END OF CORRECTED TRIVY AND CLEANUP STEPS ---
