@@ -19,9 +19,9 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Set Truncated SHA # New step to get short SHA
-        id: vars # Assign an ID to reference outputs from this step
-        run: echo "sha_short=$(echo ${{ github.sha }} | cut -c1-7)" >> "$GITHUB_OUTPUT" # Use $GITHUB_OUTPUT for new syntax
+      - name: Set Truncated SHA
+        id: vars
+        run: echo "sha_short=$(echo ${{ github.sha }} | cut -c1-7)" >> "$GITHUB_OUTPUT"
 
       - name: Build Docker Image
         uses: docker/build-push-action@v5
@@ -29,15 +29,13 @@ jobs:
           context: .
           push: false
           load: true
-          # Use the output from the 'Set Truncated SHA' step for the tag
           tags: user-profile-service:${{ steps.vars.outputs.sha_short }}
 
-      - name: List Docker Images # Debugging step - helpful to keep for now
+      - name: List Docker Images # Debugging step - you can remove this later if everything passes consistently
         run: docker images
 
       - name: Run Docker Container (for testing)
         run: |
-          # Use the output from the 'Set Truncated SHA' step for the image tag
           docker run -d -p 5000:5000 --name user-profile-test user-profile-service:${{ steps.vars.outputs.sha_short }}
           sleep 5 # Give the app a moment to start
 
@@ -54,11 +52,11 @@ jobs:
           curl -f "http://localhost:5000/greet?name=Test" || exit 1
 
       - name: Scan Docker Image with Trivy (OS and Libraries)
-        uses: aquasecurity/trivy-action@master
+        uses: aquasecurity/trivy-action@v0.12.0 # Pinned to a stable version
         with:
-          # Use the output from the 'Set Truncated SHA' step for the image reference
           image-ref: 'user-profile-service:${{ steps.vars.outputs.sha_short }}'
-          format: 'github'
+          format: 'sarif'           # Changed format to sarif
+          sarif-version: '2.1.0'    # Added specific sarif version for compatibility
           output: 'trivy-results-image.sarif'
           severity: 'CRITICAL,HIGH'
           vuln-type: 'os,library'
@@ -71,11 +69,12 @@ jobs:
         if: always()
 
       - name: Scan Filesystem (IaC/misconfigs) with Trivy
-        uses: aquasecurity/trivy-action@master
+        uses: aquasecurity/trivy-action@v0.12.0 # Pinned to a stable version
         with:
           scan-type: 'fs'
           hide-progress: false
-          format: 'github'
+          format: 'sarif'           # Changed format to sarif
+          sarif-version: '2.1.0'    # Added specific sarif version for compatibility
           output: 'trivy-results-fs.sarif'
           severity: 'CRITICAL,HIGH'
           ignore-unfixed: true
