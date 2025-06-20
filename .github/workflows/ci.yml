@@ -52,7 +52,7 @@ jobs:
           curl -f "http://localhost:5000/greet?name=Test" || exit 1
 
       - name: Scan Docker Image with Trivy (OS and Libraries)
-        uses: aquasecurity/trivy-action@v0.30.0 # Corrected to v0.30.0
+        uses: aquasecurity/trivy-action@main # Changed to @main
         with:
           image-ref: 'user-profile-service:${{ steps.vars.outputs.sha_short }}'
           format: 'sarif'
@@ -69,7 +69,7 @@ jobs:
         if: always()
 
       - name: Scan Filesystem (IaC/misconfigs) with Trivy
-        uses: aquasecurity/trivy-action@v0.30.0 # Corrected to v0.30.0
+        uses: aquasecurity/trivy-action@main # Changed to @main
         with:
           scan-type: 'fs'
           hide-progress: false
