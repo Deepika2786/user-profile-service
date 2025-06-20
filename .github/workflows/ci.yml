@@ -52,11 +52,11 @@ jobs:
           curl -f "http://localhost:5000/greet?name=Test" || exit 1
 
       - name: Scan Docker Image with Trivy (OS and Libraries)
-        uses: aquasecurity/trivy-action@v0.12.0 # Pinned to a stable version
+        uses: aquasecurity/trivy-action@v0.30.0 # Corrected to v0.30.0
         with:
           image-ref: 'user-profile-service:${{ steps.vars.outputs.sha_short }}'
-          format: 'sarif'           # Changed format to sarif
-          sarif-version: '2.1.0'    # Added specific sarif version for compatibility
+          format: 'sarif'
+          sarif-version: '2.1.0'
           output: 'trivy-results-image.sarif'
           severity: 'CRITICAL,HIGH'
           vuln-type: 'os,library'
@@ -69,12 +69,12 @@ jobs:
         if: always()
 
       - name: Scan Filesystem (IaC/misconfigs) with Trivy
-        uses: aquasecurity/trivy-action@v0.12.0 # Pinned to a stable version
+        uses: aquasecurity/trivy-action@v0.30.0 # Corrected to v0.30.0
         with:
           scan-type: 'fs'
           hide-progress: false
-          format: 'sarif'           # Changed format to sarif
-          sarif-version: '2.1.0'    # Added specific sarif version for compatibility
+          format: 'sarif'
+          sarif-version: '2.1.0'
           output: 'trivy-results-fs.sarif'
           severity: 'CRITICAL,HIGH'
           ignore-unfixed: true
